@@ -7,10 +7,10 @@
   "author": "paolo.chiabrera@gmail.com",
   "license": "MIT",
   "scripts": {
-    "build": "babel src --out-dir lib",
+    "build": "./node_modules/.bin/babel src --out-dir lib",
     "lint": "eslint --fix **/*.js",
     "precommit": "npm run lint",
-    "prepublish": "npm run build",
+    "prepublishOnly": "npm run build",
     "prepush": "npm test",
     "test": "mocha"
   },
