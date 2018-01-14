@@ -1,3 +1,4 @@
+import os from 'os';
 import puppeteer from 'puppeteer';
 import OhScrap from '../src/index';
 
@@ -42,8 +43,6 @@ describe('given an OhScrap class', () => {
 
     retrieveContentStub.withArgs(PAGE_1_URL).resolves(PAGE_1);
     retrieveContentStub.resolves(PAGE_2);
-
-    ohscrap = new OhScrap();
   });
 
   after(() => {
@@ -52,6 +51,31 @@ describe('given an OhScrap class', () => {
 
   beforeEach(() => {
     sandbox.resetHistory();
+    ohscrap = new OhScrap();
+  });
+
+  describe('when passing concurrency and strict to the constructor', () => {
+    const CONCURRENCY = 2;
+    const STRICT = true;
+
+    beforeEach(() => {
+      ohscrap = new OhScrap(CONCURRENCY, STRICT);
+    });
+
+    it('should use the custom settings', () => {
+      expect(ohscrap.concurrency).to.equal(CONCURRENCY);
+      expect(ohscrap.strict).to.equal(STRICT);
+    });
+  });
+
+  describe('when NOT passing concurrency and strict to the constructor', () => {
+    const CONCURRENCY = os.cpus().length;
+    const STRICT = false;
+
+    it('should use the default settings', () => {
+      expect(ohscrap.concurrency).to.equal(CONCURRENCY);
+      expect(ohscrap.strict).to.equal(STRICT);
+    });
   });
 
   describe('when the selector is a string', () => {

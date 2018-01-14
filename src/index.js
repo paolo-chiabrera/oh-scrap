@@ -6,7 +6,6 @@ import Promise from 'bluebird';
 import os from 'os';
 import {
   isArray,
-  isNumber,
   isPlainObject,
   isString,
 } from 'lodash';
@@ -16,10 +15,10 @@ import Debug from 'debug';
 const debug = Debug('OhScrap');
 
 export default class OhScrap {
-  constructor(concurrency) {
+  constructor(concurrency = os.cpus().length, strict = false) {
     this.browser = null;
-    this.concurrency = isNumber(concurrency) ? concurrency : os.cpus().length;
-    this.strict = false;
+    this.concurrency = concurrency;
+    this.strict = strict;
   }
 
   async retrieveContent(url, selector = 'body') {
