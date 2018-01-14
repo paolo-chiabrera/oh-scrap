@@ -1,6 +1,6 @@
 {
   "name": "oh-scrap",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "Node Module skeleton",
   "main": "lib/index.js",
   "repository": "https://github.com/paolo-chiabrera/oh-scrap.git",
