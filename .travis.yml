@@ -3,11 +3,8 @@ sudo: false
 node_js:
 - v6
 - v8
-install:
-  - npm install
-script:
+after_success:
   - npm run build
-  - npm test
 deploy:
   provider: npm
   email: paolo.chiabrera@gmail.com

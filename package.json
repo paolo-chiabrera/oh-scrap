@@ -10,7 +10,6 @@
     "build": "babel src --out-dir lib",
     "lint": "eslint --fix **/*.js",
     "precommit": "npm run lint",
-    "prepublishOnly": "npm run build",
     "prepush": "npm test",
     "test": "mocha"
   },
