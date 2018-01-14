@@ -3,8 +3,10 @@ sudo: false
 node_js:
 - v6
 - v8
-before_install:
-  - npm install -g babel-cli
+install:
+  - npm install
+script:
+  - npm test
 deploy:
   provider: npm
   email: paolo.chiabrera@gmail.com
