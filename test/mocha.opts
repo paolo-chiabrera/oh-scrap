@@ -1,0 +1,9 @@
+--bail
+--check-leaks
+--colors
+--recursive
+--reporter spec
+--require babel-polyfill
+--require babel-register
+--require test/test.config.js
+test/**/*.test.js

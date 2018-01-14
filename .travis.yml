@@ -1,0 +1,13 @@
+language: node_js
+node_js:
+- v6
+- v8
+deploy:
+  provider: npm
+  email: paolo.chiabrera@gmail.com
+  api_key:
+    secure: dfAphTuUeUOgmezJyEJ0hcgs6tu+WvhVCtS1MUYEDbIi2XN6T5BM00OecDAGhvItIf3qJt5LAWaEKJaxT7MQlzw7gFQ2LChOAkzujdFqVKeF25+8fQqk435LJh0SKKSMXIt6GqK9t3CKd+Y9lyv2VyFtVw0w0zrH6WxU0JvP9ZaiYPpA/8i41DaVul0xcsCe7Yj8XHm/S1BQ0jidLsGBNDkR8Kke6PCYs8B+0ahXblLsMCkiQ9K5HxOm5QMdd+B18eZ/v9ZFQjDs+ynlrh+T4H0gFsemfmDwoQX9x8942o+1UrNriqpCXjnIPjIO7ZTIdhvmAStoDRH/nlHJhQrkQkxwE+uxhbZlKaHTv15k/yteLqcxvloPgMLytLm9zeCFdrDM1Sf9aOHavfKA033rAS1IPuaVBpFU7MPZXYsnDQp7tPfq/I9e24wIA4KdFtdrj4HrFMQ9y4avnx3JeUIhjYLNMFcF6Xk9BhcL6NvQdQtTUcByPMv0bMakrndEd5gkFIJDUWaLlWtUtLGamOQTioTjBYk0ydVNzqN4fVYC3UwsyxtmPN40jX9LkeepJd5ZAaON6ucYPS/qT197xO6IrHj+F8HPRE8RoCzcbBPSaYWTWbaOVfVA56y7Ry0NfwLQ1ky4nLdEOq8tQOzweDYvUpstrlNJhUTRPS1TQBB0sFk=
+  on:
+    tags: true
+    node: v8
+    repo: paolo-chiabrera/oh-scrap

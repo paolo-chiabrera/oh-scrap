@@ -1,0 +1,40 @@
+{
+  "name": "oh-scrap",
+  "version": "1.0.0",
+  "description": "Node Module skeleton",
+  "main": "lib/index.js",
+  "repository": "https://github.com/paolo-chiabrera/oh-scrap.git",
+  "author": "paolo.chiabrera@gmail.com",
+  "license": "MIT",
+  "scripts": {
+    "build": "babel src --out-dir lib",
+    "lint": "eslint --fix **/*.js",
+    "precommit": "npm run lint",
+    "prepublish": "npm run build",
+    "prepush": "npm test",
+    "test": "mocha"
+  },
+  "devDependencies": {
+    "babel": "^6.23.0",
+    "babel-cli": "^6.26.0",
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "babel-register": "^6.26.0",
+    "chai": "^4.1.2",
+    "eslint": "^4.15.0",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.8.0",
+    "husky": "^0.14.3",
+    "mocha": "^4.1.0",
+    "sinon": "^4.1.4",
+    "sinon-chai": "^2.14.0"
+  },
+  "dependencies": {
+    "bluebird": "^3.5.1",
+    "cheerio": "^1.0.0-rc.2",
+    "debug": "^3.1.0",
+    "is-url": "^1.2.2",
+    "lodash": "^4.17.4",
+    "puppeteer": "^1.0.0"
+  }
+}
