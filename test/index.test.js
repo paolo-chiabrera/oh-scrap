@@ -1,17 +1,20 @@
 import os from 'os';
 import puppeteer from 'puppeteer';
+import { isArray } from 'lodash';
+import Engine from '../src/engine';
 import OhScrap from '../src/index';
 
 const PAGE_1_URL = 'http://page1.com/';
 const PAGE_2_URL = 'http://page2.com/';
+const PAGE_3_URL = 'http://page3.com/';
 
 const PAGE_1 = `
   <body>
     <h1>TITLE PAGE 1</h1>
     <a id="next-page" href="http://page2.com/">next page</a>
     <ul>
-      <li class="item">item1</li>
-      <li class="item">item2</li>
+      <li class="item" data-test="test1">item1</li>
+      <li class="item" data-test="test2">item2</li>
     </ul>
   </body>
 `;
@@ -27,6 +30,13 @@ const PAGE_2 = `
   </body>
 `;
 
+const PAGE_3 = `
+  <body>
+    <h1>TITLE PAGE 3</h1>
+    <ul>no items</ul>
+  </body>
+`;
+
 describe('given an OhScrap class', () => {
   let ohscrap;
   let sandbox;
@@ -39,10 +49,12 @@ describe('given an OhScrap class', () => {
       close: sandbox.stub().resolves(),
     });
 
-    retrieveContentStub = sandbox.stub(OhScrap.prototype, 'retrieveContent');
+    retrieveContentStub = sandbox.stub(Engine.prototype, 'retrieveContent');
 
     retrieveContentStub.withArgs(PAGE_1_URL).resolves(PAGE_1);
-    retrieveContentStub.resolves(PAGE_2);
+    retrieveContentStub.withArgs(PAGE_2_URL).resolves(PAGE_2);
+    retrieveContentStub.withArgs(PAGE_3_URL).resolves(PAGE_3);
+    retrieveContentStub.rejects(new Error('wrong page'));
   });
 
   after(() => {
@@ -89,6 +101,25 @@ describe('given an OhScrap class', () => {
   });
 
   describe('when the selector is an object', () => {
+    describe('and it looks for attributes', () => {
+      const selector = {
+        title: 'h1',
+        items: '.item@data-test',
+      };
+
+      it('should return the same object structure populated with results', async () => {
+        const result = await ohscrap.start(PAGE_1_URL, selector);
+
+        expect(result).to.deep.equal({
+          title: 'TITLE PAGE 1',
+          items: [
+            'test1',
+            'test2',
+          ],
+        });
+      });
+    });
+
     describe('and it does NOT contain deep links', () => {
       const selector = {
         title: 'h1',
@@ -148,6 +179,42 @@ describe('given an OhScrap class', () => {
           },
         });
       });
+    });
+  });
+
+  describe('when invoking until()', () => {
+    const selector = {
+      items: 'ul li',
+    };
+
+    let totalCount;
+    let emitStub;
+
+    beforeEach(async () => {
+      const getSource = count => `http://page${count + 1}.com/`;
+      const keepGoing = (count, result) => {
+        const flag = isArray(result.items) && result.items.length > 0;
+
+        return Promise.resolve(flag);
+      };
+
+      emitStub = sandbox.stub();
+
+      ohscrap.on('data', emitStub);
+
+      totalCount = await ohscrap.until(getSource, selector, keepGoing);
+    });
+
+    it('should call retrieveContentStub 3 times', () => {
+      expect(retrieveContentStub).to.be.calledThrice;
+    });
+
+    it('should call emitStub 3 times', () => {
+      expect(emitStub).to.be.calledThrice;
+    });
+
+    it('should return the total count', () => {
+      expect(totalCount).to.equal(2);
     });
   });
 });

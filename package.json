@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
-    "babel-polyfill": "^6.26.0",
+    "babel-plugin-transform-regenerator": "^6.26.0",
     "babel-preset-env": "^1.6.1",
     "babel-register": "^6.26.0",
     "chai": "^4.1.2",
@@ -25,13 +25,16 @@
     "husky": "^0.14.3",
     "mocha": "^4.1.0",
     "sinon": "^4.1.4",
-    "sinon-chai": "^2.14.0"
+    "sinon-chai": "^2.14.0",
+    "webpack": "^3.10.0"
   },
   "dependencies": {
+    "babel-polyfill": "^6.26.0",
     "bluebird": "^3.5.1",
     "cheerio": "^1.0.0-rc.2",
     "debug": "^3.1.0",
     "is-url": "^1.2.2",
+    "is-valid-path": "^0.1.1",
     "lodash": "^4.17.4",
     "puppeteer": "^1.0.0"
   }

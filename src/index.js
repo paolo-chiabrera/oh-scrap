@@ -1,54 +1,74 @@
 /* eslint-disable class-methods-use-this */
-import puppeteer from 'puppeteer';
-import isUrl from 'is-url';
-import cheerio from 'cheerio';
+import 'babel-polyfill';
+
 import Promise from 'bluebird';
-import os from 'os';
+import cheerio from 'cheerio';
+import Debug from 'debug';
+import EventEmitter from 'events';
+import isUrl from 'is-url';
 import {
   isArray,
   isPlainObject,
   isString,
+  uniq,
 } from 'lodash';
+import os from 'os';
+import isValidPath from 'is-valid-path';
+import URL from 'url';
 
-import Debug from 'debug';
+import Engine from './engine';
 
-const debug = Debug('OhScrap');
+const debug = Debug('oh-scrap');
 
-export default class OhScrap {
+class OhScrap extends EventEmitter {
   constructor(concurrency = os.cpus().length, strict = false) {
-    this.browser = null;
+    super();
+
     this.concurrency = concurrency;
+    this.engine = new Engine();
+    this.metrics = {
+      end: 0,
+      start: 0,
+    };
     this.strict = strict;
   }
 
-  async retrieveContent(url, selector = 'body') {
-    const page = await this.browser.newPage();
+  async init() {
+    debug('init');
 
-    await page.setViewport({
-      height: 720,
-      isLandscape: true,
-      width: 1280,
-    });
+    this.metrics.start = Date.now();
 
-    await page.goto(url, {
-      waitUntil: 'domcontentloaded',
-    });
+    await this.engine.init();
 
-    await page.waitFor(selector);
+    this.emit('start');
+  }
 
-    const content = await page.evaluate((sel) => {
-      const element = document.querySelector(sel); // eslint-disable-line no-undef
+  async teardown() {
+    this.metrics.end = Date.now();
 
-      return element ? element.innerHTML : null;
-    }, selector);
+    debug(`finished in ${(this.metrics.end - this.metrics.start) / 1000}s`);
 
-    await page.close();
+    await this.engine.teardown();
 
-    return content;
+    this.emit('end');
+
+    debug('teardown');
+  }
+
+  isUrl(url) {
+    return isString(url) && isUrl(url);
+  }
+
+  isRelativeUrl(url) {
+    return isString(url) && isValidPath(url);
   }
 
   getDataFromNode(node, attr = false) {
-    return attr ? node.attr(attr) : node.text();
+    if (attr) {
+      return attr === 'HTML' ? node.parent().html() : node.attr(attr);
+    }
+
+    return node.text();
   }
 
   loadContent(content = '', selector = '') {
@@ -64,6 +84,18 @@ export default class OhScrap {
       xpath,
       $,
     };
+  }
+
+  getSelectorMatches({ $, attr, element }) {
+    const rawMatches = element
+      .map((ind, node) => this.getDataFromNode($(node), attr))
+      .get();
+
+    const matches = uniq(rawMatches).filter(item => item.length > 0);
+
+    debug(`filtered matches: ${rawMatches.length !== matches.length}`);
+
+    return matches.length > 1 ? matches : matches[0];
   }
 
   handleSelectorString(content = '', selector = '') {
@@ -83,10 +115,10 @@ export default class OhScrap {
       }
 
       if (count > 1) {
-        return resolve(element.map((ind, node) => this.getDataFromNode($(node), attr)).get());
+        return resolve(this.getSelectorMatches({ $, attr, element }));
       }
 
-      return this.strict ? reject(new Error('no element found')) : resolve();
+      return this.strict ? reject(new Error('no element found')) : resolve(false);
     });
   }
 
@@ -110,29 +142,33 @@ export default class OhScrap {
   }
 
   async handleSelectorArray(content = '', [sourceSelector, targetSelector]) {
+    debug(`handleSelectorArray: ${sourceSelector} => ${targetSelector}`);
+
     const result = await this.handleSelectorString(content, sourceSelector);
 
-    debug('handleSelectorArray', sourceSelector, targetSelector, result);
+    if (this.isUrl(result) || this.isRelativeUrl(result)) {
+      debug(`handleSelectorArray: result => url => ${result}`);
 
-    if (isUrl(result)) {
       return this.crawl(result, targetSelector);
     }
 
     if (isArray(result)) {
+      debug(`handleSelectorArray: result => array => ${result.length}`, targetSelector);
+
       return Promise.map(result, source => this.crawl(source, targetSelector), {
         concurrency: this.concurrency,
       });
     }
 
     if (this.strict) {
-      return Promise.reject(new Error(`no result found: ${sourceSelector} => ${targetSelector}`));
+      return Promise.reject(new Error(`no result found: ${sourceSelector}`));
     }
 
-    return Promise.resolve();
+    return Promise.resolve(false);
   }
 
   handleSelector(content = '', selector) {
-    debug('handleSelector', selector, content);
+    debug('handleSelector', selector);
 
     return new Promise((resolve, reject) => {
       if (isString(selector)) {
@@ -147,35 +183,82 @@ export default class OhScrap {
     });
   }
 
-  async crawl(source, selector) {
-    let content = source.toString();
+  setBaseUrl(source) {
+    const { hostname, protocol } = URL.parse(source);
 
-    if (isUrl(source)) {
-      debug(`crawl link: ${source}`);
-      content = await this.retrieveContent(source);
+    this.baseUrl = `${protocol}//${hostname}`;
+
+    debug(`setBaseUrl: ${this.baseUrl}`);
+
+    return this.baseUrl;
+  }
+
+  async crawl(source, selector) {
+    let content = source;
+
+    if (this.isUrl(source)) {
+      debug(`crawl absolute link: ${source}`);
+
+      this.setBaseUrl(source);
+
+      content = await this.engine.retrieveContent(source);
+    } else if (this.isRelativeUrl(source)) {
+      const link = URL.resolve(this.baseUrl, source);
+
+      debug(`crawl relative link: ${link}`);
+
+      content = await this.engine.retrieveContent(link);
     }
 
     return this.handleSelector(content, selector);
   }
 
-  async start(source, selector) {
-    const START = Date.now();
+  async until(getSource, selector, keepGoing = () => Promise.resolve(false)) {
+    let count = 0;
+
+    await this.init();
 
     debug('started');
 
-    this.browser = await puppeteer.launch({
-      headless: true,
-      ignoreHTTPSErrors: true,
-    });
+    /* eslint-disable no-await-in-loop, no-constant-condition */
+    while (true) {
+      const source = getSource(count);
+      let result;
+
+      try {
+        result = await this.crawl(source, selector);
+
+        this.emit('data', { count, result, source });
+
+        if (!await keepGoing(count, result)) {
+          break;
+        }
+
+        count += 1;
+      } catch (e) {
+        this.emit('error', e);
+        break;
+      }
+    }
+    /* eslint-enable no-await-in-loop */
+
+    await this.teardown();
+
+    return count;
+  }
+
+  async start(source, selector) {
+    await this.init();
+
+    debug('started');
+
 
     const result = await this.crawl(source, selector);
 
-    await this.browser.close();
-
-    const END = Date.now();
-
-    debug(`finished in ${(END - START) / 1000}s`);
+    await this.teardown();
 
     return result;
   }
 }
+
+module.exports = OhScrap;
