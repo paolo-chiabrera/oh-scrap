@@ -66,27 +66,23 @@ describe('given an OhScrap class', () => {
     ohscrap = new OhScrap();
   });
 
-  describe('when passing concurrency and strict to the constructor', () => {
+  describe('when passing concurrency to the constructor', () => {
     const CONCURRENCY = 2;
-    const STRICT = true;
 
     beforeEach(() => {
-      ohscrap = new OhScrap(CONCURRENCY, STRICT);
+      ohscrap = new OhScrap(CONCURRENCY);
     });
 
     it('should use the custom settings', () => {
       expect(ohscrap.concurrency).to.equal(CONCURRENCY);
-      expect(ohscrap.strict).to.equal(STRICT);
     });
   });
 
-  describe('when NOT passing concurrency and strict to the constructor', () => {
+  describe('when NOT passing concurrency to the constructor', () => {
     const CONCURRENCY = os.cpus().length;
-    const STRICT = false;
 
     it('should use the default settings', () => {
       expect(ohscrap.concurrency).to.equal(CONCURRENCY);
-      expect(ohscrap.strict).to.equal(STRICT);
     });
   });
 
@@ -192,7 +188,7 @@ describe('given an OhScrap class', () => {
 
     beforeEach(async () => {
       const getSource = count => `http://page${count + 1}.com/`;
-      const keepGoing = (count, result) => {
+      const keepGoing = ({ result }) => {
         const flag = isArray(result.items) && result.items.length > 0;
 
         return Promise.resolve(flag);
@@ -209,8 +205,8 @@ describe('given an OhScrap class', () => {
       expect(retrieveContentStub).to.be.calledThrice;
     });
 
-    it('should call emitStub 3 times', () => {
-      expect(emitStub).to.be.calledThrice;
+    it('should call emitStub 2 times', () => {
+      expect(emitStub).to.be.calledTwice;
     });
 
     it('should return the total count', () => {
