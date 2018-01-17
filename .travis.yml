@@ -3,9 +3,8 @@ sudo: false
 node_js:
 - v6
 - v8
-after_success:
-  - npm run build
 deploy:
+  skip_cleanup: true
   provider: npm
   email: paolo.chiabrera@gmail.com
   api_key:
