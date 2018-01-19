@@ -17,30 +17,34 @@ export default class Engine {
     };
   }
 
-  async retrieveContent(url, selector = 'body') {
-    const page = await this.browser.newPage();
+  async retrieveContent(url, waitForSelector = 'body') {
+    try {
+      const page = await this.browser.newPage();
 
-    await page.setViewport(this.viewportOptions);
+      await page.setViewport(this.viewportOptions);
 
-    await page.goto(url, this.gotoOptions);
+      await page.goto(url, this.gotoOptions);
 
-    await page.waitFor(selector);
+      await page.waitForSelector(waitForSelector);
 
-    const content = await page.evaluate((sel) => {
-      const element = document.querySelector(sel); // eslint-disable-line no-undef
+      const content = await page.content();
 
-      return element ? element.innerHTML : null;
-    }, selector);
+      await page.close();
 
-    await page.close();
-
-    return content;
+      return content;
+    } catch (e) {
+      return e;
+    }
   }
 
   async init() {
-    this.browser = await puppeteer.launch(this.launchOptions);
+    try {
+      this.browser = await puppeteer.launch(this.launchOptions);
 
-    return this.browser;
+      return this.browser;
+    } catch (e) {
+      return e;
+    }
   }
 
   teardown() {

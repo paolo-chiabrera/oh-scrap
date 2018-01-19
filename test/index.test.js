@@ -34,6 +34,7 @@ const PAGE_3 = `
   <body>
     <h1>TITLE PAGE 3</h1>
     <ul>no items</ul>
+    <p>something else to reach 100 characters</p>
   </body>
 `;
 
@@ -89,10 +90,11 @@ describe('given an OhScrap class', () => {
   describe('when the selector is a string', () => {
     const selector = 'h1';
 
-    it('should return a string result', async () => {
-      const result = await ohscrap.start(PAGE_1_URL, selector);
-
-      expect(result).to.equal('TITLE PAGE 1');
+    it('should return a string result', (done) => {
+      ohscrap.start({ url: PAGE_1_URL, selector }, (err, result) => {
+        expect(result).to.equal('TITLE PAGE 1');
+        done();
+      });
     });
   });
 
@@ -103,15 +105,16 @@ describe('given an OhScrap class', () => {
         items: '.item@data-test',
       };
 
-      it('should return the same object structure populated with results', async () => {
-        const result = await ohscrap.start(PAGE_1_URL, selector);
-
-        expect(result).to.deep.equal({
-          title: 'TITLE PAGE 1',
-          items: [
-            'test1',
-            'test2',
-          ],
+      it('should return the same object structure populated with results', (done) => {
+        ohscrap.start({ url: PAGE_1_URL, selector }, (err, result) => {
+          expect(result).to.deep.equal({
+            title: 'TITLE PAGE 1',
+            items: [
+              'test1',
+              'test2',
+            ],
+          });
+          done();
         });
       });
     });
@@ -122,20 +125,21 @@ describe('given an OhScrap class', () => {
         items: '.item',
       };
 
-      it('should return the same object structure populated with results', async () => {
-        const result = await ohscrap.start(PAGE_1_URL, selector);
-
-        expect(result).to.deep.equal({
-          title: 'TITLE PAGE 1',
-          items: [
-            'item1',
-            'item2',
-          ],
+      it('should return the same object structure populated with results', (done) => {
+        ohscrap.start({ url: PAGE_1_URL, selector }, (err, result) => {
+          expect(result).to.deep.equal({
+            title: 'TITLE PAGE 1',
+            items: [
+              'item1',
+              'item2',
+            ],
+          });
+          done();
         });
       });
     });
 
-    describe('and it does contain deep links', () => {
+    describe.skip('and it does contain deep links', () => {
       const selector = {
         title: 'h1',
         items: '.item',
@@ -147,8 +151,11 @@ describe('given an OhScrap class', () => {
 
       let result;
 
-      beforeEach(async () => {
-        result = await ohscrap.start(PAGE_1_URL, selector);
+      beforeEach((done) => {
+        ohscrap.start({ url: PAGE_1_URL, selector }, (err, data) => {
+          result = data;
+          done();
+        });
       });
 
       it('should call retrieveContentStub twice', () => {
@@ -182,23 +189,25 @@ describe('given an OhScrap class', () => {
     const selector = {
       items: 'ul li',
     };
+    const getUrl = count => `http://page${count + 1}.com/`;
+    const keepGoing = ({ result }) => {
+      const flag = isArray(result.items) && result.items.length > 0;
 
-    let totalCount;
+      return Promise.resolve(flag);
+    };
+
     let emitStub;
+    let totalCount;
 
-    beforeEach(async () => {
-      const getSource = count => `http://page${count + 1}.com/`;
-      const keepGoing = ({ result }) => {
-        const flag = isArray(result.items) && result.items.length > 0;
-
-        return Promise.resolve(flag);
-      };
-
+    beforeEach((done) => {
       emitStub = sandbox.stub();
 
       ohscrap.on('data', emitStub);
 
-      totalCount = await ohscrap.until(getSource, selector, keepGoing);
+      ohscrap.until({ getUrl, selector, keepGoing }, (err, res) => {
+        totalCount = res;
+        done();
+      });
     });
 
     it('should call retrieveContentStub 3 times', () => {

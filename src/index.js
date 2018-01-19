@@ -12,7 +12,7 @@ import { crawl } from './crawl';
 const debug = Debug('oh-scrap');
 
 class OhScrap extends EventEmitter {
-  constructor(concurrency = os.cpus().length) {
+  constructor(concurrency = os.cpus().length, retry) {
     super();
 
     this.concurrency = concurrency;
@@ -20,6 +20,10 @@ class OhScrap extends EventEmitter {
     this.metrics = {
       end: 0,
       start: 0,
+    };
+    this.retry = retry || {
+      interval: 1500,
+      times: 5,
     };
   }
 
@@ -45,68 +49,98 @@ class OhScrap extends EventEmitter {
     debug('teardown');
   }
 
-  async until(getSource, selector, keepGoing = () => false) {
+  async until(args, done) {
+    const {
+      getUrl,
+      selector,
+      keepGoing = () => false,
+      waitForSelector,
+    } = args;
+
+    try {
+      await this.init();
+    } catch (e) {
+      done(e);
+      return;
+    }
+
+    debug('until');
+
     let count = 0;
 
-    await this.init();
+    forever((next) => {
+      debug(`count ${count}`);
 
-    debug('started');
+      const url = getUrl(count);
 
-    return new Promise((resolve) => {
-      forever((next) => {
-        const source = getSource(count);
-
-        crawl({
-          engine: this.engine,
-          selector,
-          source,
-        }, async (err, result) => {
-          if (err) {
-            next(err);
-            return;
-          }
-
-          this.emit('data', { count, result, source });
-
-          const flag = await keepGoing({ count, result, source });
-
-          if (flag) {
-            count += 1;
-
-            next();
-          } else {
-            next(count);
-          }
-        });
-      }, async () => {
-        await this.teardown();
-
-        resolve(count);
-      });
-    });
-  }
-
-  async start(source, selector) {
-    await this.init();
-
-    debug('started');
-
-    return new Promise((resolve, reject) => {
-      crawl({
-        concurrency: this.concurrency,
-        engine: this.engine,
+      this.start({
         selector,
-        source,
-      }, async (err, res) => {
-        await this.teardown();
-
+        url,
+        waitForSelector,
+      }, async (err, result) => {
         if (err) {
-          reject(err);
+          next(err);
           return;
         }
 
-        resolve(res);
+        const flag = await keepGoing({ count, result, url });
+
+        debug('keepGoing', flag);
+
+        if (flag !== true) {
+          next(true);
+          return;
+        }
+
+        this.emit('data', { count, result, url });
+        count += 1;
+        next();
       });
+    }, async () => {
+      try {
+        await this.teardown();
+      } catch (e) {
+        done(e);
+        return;
+      }
+
+      done(null, count);
+    });
+  }
+
+  async start(args, done) {
+    const { selector, url, waitForSelector = 'body' } = args;
+
+    try {
+      await this.init();
+    } catch (e) {
+      done(e);
+      return;
+    }
+
+    debug('started');
+
+    crawl({
+      concurrency: this.concurrency,
+      engine: this.engine,
+      retry: this.retry,
+      selector,
+      url,
+      waitForSelector,
+    }, async (err, res) => {
+      try {
+        await this.teardown();
+      } catch (e) {
+        done(e);
+        return;
+      }
+
+      if (err) {
+        done(err);
+        return;
+      }
+
+      done(null, res);
     });
   }
 }

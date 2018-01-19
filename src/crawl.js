@@ -1,5 +1,5 @@
 /* eslint-disable no-use-before-define */
-import { mapLimit, mapValuesLimit, waterfall } from 'async';
+import async from 'async';
 import Debug from 'debug';
 import {
   isString,
@@ -38,15 +38,15 @@ export function handleSelectorString(args, done) {
     return;
   }
 
-  done(new Error('no element found'));
+  done();
 }
 
 export function handleSelectorObject(args, done) {
-  const { selector } = args;
+  const { concurrency, selector } = args;
 
-  mapValuesLimit(
+  async.mapValuesLimit(
     selector,
-    1,
+    concurrency,
     (value, key, next) => handleSelector(merge(args, { selector: value }), next),
     done,
   );
@@ -58,7 +58,7 @@ export async function handleSelectorArray(args, done) {
 
   debug(`handleSelectorArray: ${sourceSelector} => ${targetSelector}`);
 
-  waterfall([
+  async.waterfall([
     next => handleSelectorString(merge(args, { selector: sourceSelector }), next),
     (result, next) => {
       if (isUrl(result) || isRelativeUrl(result)) {
@@ -75,7 +75,7 @@ export async function handleSelectorArray(args, done) {
       if (isArray(result)) {
         debug(`handleSelectorArray: result => array => ${result.length}`, targetSelector);
 
-        mapLimit(result, concurrency, (source, mapNext) => {
+        async.mapLimit(result, concurrency, (source, mapNext) => {
           const crawlArgs = merge(args, {
             selector: targetSelector,
             source,
@@ -105,32 +105,53 @@ export function handleSelector(args, done) {
 }
 
 export function crawl(args, done) {
-  const { engine, source } = args;
+  const {
+    engine, retry, url, waitForSelector,
+  } = args;
   const context = merge({}, args.context);
 
   let link;
 
-  if (isUrl(source)) {
-    context.url = source;
-    context.baseUrl = getBaseUrl(source);
+  if (isUrl(url)) {
+    context.url = url;
+    context.baseUrl = getBaseUrl(url);
 
-    debug(`crawl absolute link: ${source}`);
+    debug(`crawl absolute link: ${url}`);
 
-    link = source;
-  } else if (isRelativeUrl(source)) {
-    link = URL.resolve(context.baseUrl, source);
+    link = url;
+  } else if (isRelativeUrl(url)) {
+    link = URL.resolve(context.baseUrl, url);
 
     context.url = link;
 
     debug(`crawl relative link: ${link}`);
   }
 
-  engine.retrieveContent(link)
-    .catch(done)
-    .then((content) => {
-      handleSelector(merge(args, {
-        content,
-        context,
-      }), done);
-    });
+  let attempt = 0;
+
+  const { interval, times } = retry;
+
+  async.retry({
+    interval,
+    times,
+  }, (callback) => {
+    debug(`retrieveContent attempt ${attempt} => ${link}`);
+
+    attempt += 1;
+
+    engine.retrieveContent(link, waitForSelector)
+      .then((content) => {
+        if (!isString(content) || content.length < 100) {
+          callback(new Error('invalid content'));
+          return;
+        }
+
+        debug('content', content.length);
+
+        handleSelector(merge(args, {
+          content,
+          context,
+        }), callback);
+      }, callback);
+  }, (err, res) => done(null, res));
 }
