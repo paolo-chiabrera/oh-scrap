@@ -3,6 +3,7 @@ import 'babel-polyfill';
 import { forever } from 'async';
 import Debug from 'debug';
 import EventEmitter from 'events';
+import { get, merge } from 'lodash';
 import os from 'os';
 
 import Engine from './engine';
@@ -12,19 +13,19 @@ import { crawl } from './crawl';
 const debug = Debug('oh-scrap');
 
 class OhScrap extends EventEmitter {
-  constructor(concurrency = os.cpus().length, retry) {
+  constructor(options) {
     super();
 
-    this.concurrency = concurrency;
-    this.engine = new Engine();
+    this.concurrency = get(options, 'concurrency', os.cpus().length);
+    this.engine = new Engine(get(options, 'engine'));
     this.metrics = {
       end: 0,
       start: 0,
     };
-    this.retry = retry || {
+    this.retry = merge({
       interval: 1500,
       times: 5,
-    };
+    }, get(options, 'retry'));
   }
 
   async init() {

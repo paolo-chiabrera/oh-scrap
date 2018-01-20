@@ -71,7 +71,7 @@ describe('given an OhScrap class', () => {
     const CONCURRENCY = 2;
 
     beforeEach(() => {
-      ohscrap = new OhScrap(CONCURRENCY);
+      ohscrap = new OhScrap({ concurrency: CONCURRENCY });
     });
 
     it('should use the custom settings', () => {

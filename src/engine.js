@@ -1,20 +1,24 @@
+import { get, merge } from 'lodash';
 import puppeteer from 'puppeteer';
 
 export default class Engine {
-  constructor() {
+  constructor(options) {
     this.browser = null;
-    this.gotoOptions = {
+
+    this.gotoOptions = merge({
       waitUntil: 'load',
-    };
-    this.launchOptions = {
+    }, get(options, 'gotoOptions'));
+
+    this.launchOptions = merge({
       headless: true,
       ignoreHTTPSErrors: true,
-    };
-    this.viewportOptions = {
+    }, get(options, 'launchOptions'));
+
+    this.viewportOptions = merge({
       height: 720,
       isLandscape: true,
       width: 1280,
-    };
+    }, get(options, 'viewportOptions'));
   }
 
   async retrieveContent(url, waitForSelector = 'body') {
